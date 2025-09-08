@@ -1,0 +1,71 @@
+---
+- name: Install K3s master node
+  hosts: master
+  become: yes
+  tasks:
+    - name: Install K3s master
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - --disable traefik --disable servicelb
+
+    - name: Wait for K3s to be ready
+      wait_for:
+        port: 6443
+        host: "{{ ansible_host }}"
+        delay: 10
+        timeout: 300
+
+    - name: Get K3s token
+      shell: cat /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Set fact for K3s token
+      set_fact:
+        k3s_token: "{{ k3s_token.stdout }}"
+
+    - name: Copy kubeconfig
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ./k3s.yaml
+        flat: yes
+
+    - name: Pre-pull essential images
+      shell: |
+        docker pull quay.io/keycloak/keycloak:22.0
+        docker pull postgres:15
+        docker pull gitea/gitea:1.21
+        docker pull cr.l5d.io/linkerd/proxy:stable-2.14
+        docker pull cr.l5d.io/linkerd/controller:stable-2.14
+        docker tag quay.io/keycloak/keycloak:22.0 localhost:5000/keycloak:22.0
+        docker tag postgres:15 localhost:5000/postgres:15
+        docker tag gitea/gitea:1.21 localhost:5000/gitea:1.21
+        docker tag cr.l5d.io/linkerd/proxy:stable-2.14 localhost:5000/linkerd-proxy:stable-2.14
+        docker tag cr.l5d.io/linkerd/controller:stable-2.14 localhost:5000/linkerd-controller:stable-2.14
+        docker push localhost:5000/keycloak:22.0
+        docker push localhost:5000/postgres:15
+        docker push localhost:5000/gitea:1.21
+        docker push localhost:5000/linkerd-proxy:stable-2.14
+        docker push localhost:5000/linkerd-controller:stable-2.14
+
+- name: Install K3s worker node
+  hosts: worker
+  become: yes
+  tasks:
+    - name: Install K3s worker
+      shell: |
+        curl -sfL https://get.k3s.io | K3S_URL="https://192.168.56.10:6443" \
+        K3S_TOKEN="{{ hostvars['master']['k3s_token'] }}" sh -
+
+    - name: Wait for K3s worker to be ready
+      wait_for:
+        port: 10250
+        host: "{{ ansible_host }}"
+        delay: 10
+        timeout: 300
+
+    - name: Pre-pull essential images on worker
+      shell: |
+        docker pull localhost:5000/keycloak:22.0
+        docker pull localhost:5000/postgres:15
+        docker pull localhost:5000/gitea:1.21
+        docker pull localhost:5000/linkerd-proxy:stable-2.14
+        docker pull localhost:5000/linkerd-controller:stable-2.14

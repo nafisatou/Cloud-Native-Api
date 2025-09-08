@@ -1,0 +1,121 @@
+
+ am version: '3.8'
+
+services:
+  # K3s Master Node
+  k3s-master:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-master
+    privileged: true
+    ports:
+      - "6443:6443"
+      - "8080:8080"
+    environment:
+      - K3S_TOKEN=cloudnative-gauntlet-token
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+    volumes:
+      - k3s-master-data:/var/lib/rancher/k3s
+      - ./k3s-config:/output
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: server --disable traefik --disable servicelb --disable local-storage
+    networks:
+      - k3s-network
+
+  # K3s Worker Node
+  k3s-worker:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-worker
+    privileged: true
+    depends_on:
+      - k3s-master
+    environment:
+      - K3S_URL=https://k3s-master:6443
+      - K3S_TOKEN=cloudnative-gauntlet-token
+    volumes:
+      - k3s-worker-data:/var/lib/rancher/k3s
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: agent
+    networks:
+      - k3s-network
+
+  # Local Registry
+  registry:
+    image: registry:2
+    container_name: local-registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - k3s-network
+
+  # PostgreSQL for local development
+  postgres:
+    image: postgres:15
+    container_name: postgres-dev
+    environment: 
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - k3s-network
+
+  # Keycloak
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: secret
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    command: start-dev
+    networks:
+      - k3s-network
+
+  # Gitea
+  gitea:
+    image: gitea/gitea:1.21
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=admin
+      - GITEA__database__PASSWD=secret
+    ports:
+      - "3000:3000"
+      - "2222:22"
+    volumes:
+      - gitea-data:/data
+    depends_on:
+      - postgres
+    networks:
+      - k3s-network
+
+volumes:
+  k3s-master-data:
+  k3s-worker-data:
+  registry-data:
+  postgres-data:
+  gitea-data:
+
+networks:
+  k3s-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

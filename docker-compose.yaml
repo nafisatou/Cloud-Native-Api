@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./app/rust-api   # <-- corrected path
+    environment:
+      DATABASE_URL: "postgres://admin:secret@db:5432/todo"
+      JWT_SECRET: "devsecret"
+    depends_on:
+      - db
+    ports:
+      - "8081:8081"
+
+volumes:
+  postgres_data:
