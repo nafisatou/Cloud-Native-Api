@@ -1,59 +1,99 @@
 # Cloud-Native Gauntlet 🚀
 
-A complete cloud-native application stack built from scratch, running entirely offline on local VMs. This project demonstrates modern cloud-native practices including Kubernetes, service mesh, GitOps, and more.
+A complete cloud-native application stack built from scratch, runnable entirely offline using Docker and a local Kubernetes cluster. This project demonstrates modern cloud-native practices including Kubernetes, service mesh, GitOps, and more.
 
 ## 🎯 Project Overview
 
 Build a full-stack cloud-native application with:
 - **Rust API** with JWT authentication and PostgreSQL
-- **K3s cluster** on local VMs (Vagrant)
+- **Kubernetes (kind)** local cluster
 - **CloudNativePG** for database management
 - **Keycloak** for authentication
 - **Gitea** for GitOps
 - **Linkerd** service mesh
+- **Argo CD** for GitOps UI
 - **Complete offline operation**
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   Master VM     │    │   Worker VM     │
-│   (192.168.56.10)│    │   (192.168.56.11)│
-│                 │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │ K3s Master  │ │    │ │ K3s Worker  │ │
-│ │ Keycloak    │ │    │ │ App Pods    │ │
-│ │ Gitea       │ │    │ │ DB Pods     │ │
-│ │ Registry    │ │    │ │             │ │
-│ └─────────────┘ │    │ └─────────────┘ │
-└─────────────────┘    └─────────────────┘
+┌────────────────────────────────────────────┐
+│                 Docker Host                │
+│ ┌────────────────────────────────────────┐ │
+│ │  kind cluster (control-plane container)│ │
+│ │  - App pods (Rust API, Postgres)       │ │
+│ │  - Linkerd + Linkerd Viz               │ │
+│ │  - Argo CD                             │ │
+│ └────────────────────────────────────────┘ │
+│ ┌──────────────┐  ┌───────────┐  ┌──────┐ │
+│ │  Keycloak    │  │  Gitea    │  │ Reg. │ │
+│ │  (8082)      │  │  (3000)   │  │5000  │ │
+│ └──────────────┘  └───────────┘  └──────┘ │
+└────────────────────────────────────────────┘
+```
+
+```mermaid
+flowchart TB
+  subgraph Docker_Host
+    subgraph kind_cluster
+      API[(Rust API Pods)] -->|TCP 5432| PG[(Postgres Pod)]
+      API -->|mTLS| Linkerd[Linkerd Control Plane]
+      Linkerd --> Viz[Linkerd Viz]
+      Argo[Argo CD]
+    end
+    Keycloak[(Keycloak Container)]
+    Gitea[(Gitea Container)]
+    Registry[(Local Registry :5000)]
+  end
+
+  Gitea <-. GitOps .-> Argo
+  Registry -->|pull/push| API
+  Registry --> Keycloak
+  Registry --> Gitea
+  Registry --> PG
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Vagrant** (for VM management)
-- **VirtualBox** (VM provider)
-- **Ansible** (for automation)
-- **4GB+ RAM** available for VMs
+- **Docker**
+- **kubectl**
+- **kind** (Kubernetes in Docker)
+- 4GB+ RAM available
 
-### Day 1-2: Infrastructure Setup
+### Bring up local services
 
-1. **Start the infrastructure:**
+1. **Start infrastructure containers:**
    ```bash
-   ./setup-infrastructure.sh
+   docker compose -f docker-compose-infra.yaml up -d
    ```
 
-2. **Verify the setup:**
+2. **Start app stack (DB + API):**
    ```bash
-   export KUBECONFIG=$(pwd)/k3s.yaml
-   kubectl get nodes
+   docker compose up -d
    ```
 
-3. **Test local registry:**
+3. **Verify containers:**
    ```bash
-   curl http://registry.local:5000/v2/_catalog
+   docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'
+   ```
+
+4. **Connect kubectl to kind cluster:**
+   ```bash
+   # one-time: extract and rewrite kubeconfig to host port
+   docker inspect cloud-native-gauntlet-control-plane --format '{{json .NetworkSettings.Ports}}' | jq -r '.["6443/tcp"][0].HostPort'
+   # assume it prints e.g. 37167; then set KUBECONFIG to kind-kubeconfig-local.yaml if present
+   export KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml
+   kubectl get ns
+   ```
+
+5. **(Optional) Keep UIs reachable:**
+   ```bash
+   # Argo CD UI → http://localhost:30080
+   kubectl -n argocd port-forward svc/argocd-server 30080:80 &
+   # Linkerd Viz UI → http://localhost:30001
+   kubectl -n linkerd-viz port-forward svc/web 30001:8084 &
    ```
 
 ### Day 3-4: Application Development
@@ -86,35 +126,68 @@ kubectl apply -f app/rust-api/infra/k8s/
 
 ```
 cloud-native-gauntlet/
-├── ansible/                 # Infrastructure automation
-│   ├── inventory.ini       # VM inventory
-│   └── site.yml           # K3s installation
 ├── app/rust-api/          # Rust application
 │   ├── src/               # Source code
-│   ├── infra/k8s/         # Kubernetes manifests
-│   └── offline-images/    # Pre-pulled images
+│   ├── k8s/               # Kubernetes manifests
+│   ├── infra/             # Infrastructure configs
+│   ├── Dockerfile         # Container build file
+│   └── Cargo.toml         # Rust dependencies
 ├── docs/                  # Documentation
 ├── registry/              # Local registry data
-├── Vagrantfile           # VM configuration
-├── setup-infrastructure.sh # Main setup script
+├── docker-compose.yaml    # App services (DB + API)
 ├── setup-local-dns.sh    # DNS configuration
 └── cleanup.sh            # Cleanup script
 ```
 
 ## 🔧 Available Scripts
 
-- **`./setup-infrastructure.sh`** - Complete infrastructure setup
 - **`./setup-local-dns.sh`** - Configure local DNS
 - **`./cleanup.sh`** - Clean up everything for fresh start
 
 ## 🌐 Local Access Points
 
-- **Keycloak**: https://keycloak.local
-- **Gitea**: http://gitea.local
-- **Registry**: http://registry.local:5000
-- **API**: http://api.local
-- **K3s Master**: vagrant ssh master
-- **K3s Worker**: vagrant ssh worker
+- **Keycloak**: http://localhost:8082
+- **Gitea**: http://localhost:3000
+- **Registry API**: http://localhost:5000/v2/_catalog
+- **Rust API (health)**: http://localhost:8081/health
+- **Argo CD UI**: http://localhost:30080
+- **Linkerd Viz UI**: http://localhost:30001
+
+## ✅ Offline Validation
+
+Use these steps to prove the stack runs without internet:
+
+1. Pre-requisites (already done here):
+   - Images mirrored to `localhost:5000`
+   - kind node preloaded with required images
+   - Manifests use `localhost:5000/...` and `imagePullPolicy: IfNotPresent`
+
+2. Disable internet on your host (Wi‑Fi/Ethernet off).
+
+3. Restart key workloads and wait for Ready:
+```bash
+KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml kubectl -n cloud-native-gauntlet \
+  rollout restart deploy/postgres deploy/rust-api && \
+KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml kubectl -n cloud-native-gauntlet \
+  rollout status deploy/postgres --timeout=180s && \
+KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml kubectl -n cloud-native-gauntlet \
+  rollout status deploy/rust-api --timeout=180s
+```
+
+4. Verify endpoints (expect 200/307):
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8081/health
+curl -s http://localhost:5000/v2/_catalog | jq
+```
+
+5. Confirm no external pulls:
+```bash
+KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml \
+kubectl -n cloud-native-gauntlet get events --sort-by=.lastTimestamp | \
+  egrep -i 'pull|image|backoff' || echo "no pull events"
+```
 
 ## 🎯 Victory Conditions
 
@@ -127,31 +200,24 @@ cloud-native-gauntlet/
 
 ## 🆘 Troubleshooting
 
-### VMs won't start
+### Containers / cluster status
 ```bash
-# Check VirtualBox status
-VBoxManage list runningvms
-
-# Restart VirtualBox service
-sudo systemctl restart vboxdrv
+docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'
+kubectl get pods -A
 ```
 
-### K3s cluster issues
+### Common issues
 ```bash
-# Check cluster status
-kubectl get nodes
+# API container health failing
+docker logs cloud-native-gauntlet-api-1 | tail -n 200
 
-# Restart K3s on master
-vagrant ssh master -c "sudo systemctl restart k3s"
-```
+# Keycloak or Gitea
+docker logs keycloak | tail -n 200
+docker logs gitea | tail -n 200
 
-### Registry issues
-```bash
-# Check registry status
-vagrant ssh master -c "docker ps | grep registry"
-
-# Restart registry
-vagrant ssh master -c "docker restart registry"
+# Port-forward not reachable
+pkill -f 'port-forward.*argocd-server' || true
+pkill -f 'port-forward.*linkerd-viz' || true
 ```
 
 ## 📚 Next Steps
@@ -164,6 +230,18 @@ vagrant ssh master -c "docker restart registry"
 6. **Day 9-10**: Set up GitOps
 7. **Day 11**: Deploy Linkerd
 8. **Day 12**: Documentation and testing
+
+### Day 12: Documentation and Testing
+
+- Updated README with:
+  - Offline Validation steps (no internet required)
+  - Local endpoints and start instructions
+  - Architecture diagram and Mermaid graph
+- Start script: `./start-local.sh` boots stacks and port-forwards (30001/30080)
+- Validate offline:
+  - Mirror images to `localhost:5000`, preload into kind
+  - Restart `rust-api` and `postgres`; ensure endpoints return 200/307
+  - Confirm no image pull/backoff events in `kubectl get events`
 
 ---
 
