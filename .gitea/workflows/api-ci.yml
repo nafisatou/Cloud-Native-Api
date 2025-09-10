@@ -1,0 +1,39 @@
+name: API CI - Build and Push Image
+
+on:
+  push:
+    branches: [ main, readme-start-script ]
+    paths:
+      - 'app/rust-api/**'
+      - '.gitea/workflows/**'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+
+      - name: Build (Rust API)
+        working-directory: app/rust-api
+        run: |
+          cargo build --release
+
+      - name: Build Docker image
+        run: |
+          docker build -t localhost:5000/cloud-native-gauntlet-api:latest ./app/rust-api
+
+      - name: Push to local registry
+        run: |
+          docker push localhost:5000/cloud-native-gauntlet-api:latest
+
+      # Optional: Trigger a rollout in cluster if desired. Uncomment when runner has kubectl context.
+      # - name: Rollout restart (rust-api)
+      #   run: |
+      #     kubectl -n cloud-native-gauntlet rollout restart deploy/rust-api
+

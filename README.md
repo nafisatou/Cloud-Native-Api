@@ -40,7 +40,7 @@ flowchart TB
       API -->|mTLS| Linkerd[Linkerd Control Plane]
       Linkerd --> Viz[Linkerd Viz]
       Argo[Argo CD]
-    end
+    
     Keycloak[(Keycloak Container)]
     Gitea[(Gitea Container)]
     Registry[(Local Registry :5000)]
