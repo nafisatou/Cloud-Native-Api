@@ -5,6 +5,8 @@
 
 set -e
 
+
+
 echo "🧹 Cleaning up Cloud-Native Gauntlet Infrastructure"
 echo "=================================================="
 

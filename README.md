@@ -122,6 +122,7 @@ kubectl apply -f app/rust-api/postgres-cluster.yaml
 kubectl apply -f app/rust-api/infra/k8s/
 ```
 
+
 ## 📁 Project Structure
 
 ```
@@ -153,7 +154,9 @@ cloud-native-gauntlet/
 - **Argo CD UI**: http://localhost:30080
 - **Linkerd Viz UI**: http://localhost:30001
 
+
 ## ✅ Offline Validation
+
 
 Use these steps to prove the stack runs without internet:
 
