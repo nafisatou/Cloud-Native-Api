@@ -160,6 +160,7 @@ cloud-native-gauntlet/
 
 Use these steps to prove the stack runs without internet:
 
+
 1. Pre-requisites (already done here):
    - Images mirrored to `localhost:5000`
    - kind node preloaded with required images
