@@ -3,9 +3,6 @@ name: API CI - Build and Push Image
 on:
   push:
     branches: [ main, ci-workflow ]
-    paths:
-      - 'app/rust-api/**'
-      - '.gitea/workflows/**'
 
 jobs:
   build-and-push:
@@ -36,5 +33,7 @@ jobs:
       # - name: Rollout restart (rust-api)
       #   run: |
       #     kubectl -n cloud-native-gauntlet rollout restart deploy/rust-api
+
+
 
 

@@ -1,5 +1,5 @@
 
- am version: '3.8'
+version: '3.8'
 
 services:
   # K3s Master Node
@@ -91,6 +91,7 @@ services:
     environment:
       - USER_UID=1000
       - USER_GID=1000
+      - GITEA__actions__ENABLED=true
       - GITEA__database__DB_TYPE=postgres
       - GITEA__database__HOST=postgres:5432
       - GITEA__database__NAME=gitea
