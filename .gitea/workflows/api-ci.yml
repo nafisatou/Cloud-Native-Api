@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: linux-amd64
+    runs-on: ubuntu-latest
     steps:
       - name: Build and push (no external actions)
         run: |
