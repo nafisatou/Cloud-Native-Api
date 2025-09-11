@@ -8,25 +8,16 @@ jobs:
   build-and-push:
     runs-on: linux-amd64
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Compute short SHA
-        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: app/rust-api
-          push: true
-          tags: |
-            localhost:5000/cloud-native-gauntlet-api:latest
-            localhost:5000/cloud-native-gauntlet-api:sha-${{ env.SHORT_SHA }}
-          cache-from: type=registry,ref=localhost:5000/cloud-native-gauntlet-api:buildcache
-          cache-to: type=registry,ref=localhost:5000/cloud-native-gauntlet-api:buildcache,mode=max
+      - name: Build and push (no external actions)
+        run: |
+          set -euo pipefail
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          echo "Building tags: latest and sha-${SHORT_SHA}"
+          docker build -t localhost:5000/cloud-native-gauntlet-api:latest \
+                       -t localhost:5000/cloud-native-gauntlet-api:sha-${SHORT_SHA} \
+                       ./app/rust-api
+          docker push localhost:5000/cloud-native-gauntlet-api:latest
+          docker push localhost:5000/cloud-native-gauntlet-api:sha-${SHORT_SHA}
 
       # Optional rollout (enable if kubectl is configured)
       # - name: Rollout restart (rust-api)
