@@ -6,33 +6,31 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: linux-amd64
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Rust
-        uses: actions/setup-rust@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute short SHA
+        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
         with:
-          rust-version: stable
+          context: app/rust-api
+          push: true
+          tags: |
+            localhost:5000/cloud-native-gauntlet-api:latest
+            localhost:5000/cloud-native-gauntlet-api:sha-${{ env.SHORT_SHA }}
+          cache-from: type=registry,ref=localhost:5000/cloud-native-gauntlet-api:buildcache
+          cache-to: type=registry,ref=localhost:5000/cloud-native-gauntlet-api:buildcache,mode=max
 
-      - name: Build (Rust API)
-        working-directory: app/rust-api
-        run: |
-          cargo build --release
-
-      - name: Build Docker image
-        run: |
-          docker build -t localhost:5000/cloud-native-gauntlet-api:latest ./app/rust-api
-
-      - name: Push to local registry
-        run: |
-          docker push localhost:5000/cloud-native-gauntlet-api:latest
-
-      # Optional: Trigger a rollout in cluster if desired. Uncomment when runner has kubectl context.
+      # Optional rollout (enable if kubectl is configured)
       # - name: Rollout restart (rust-api)
-      #   run: |
-      #     kubectl -n cloud-native-gauntlet rollout restart deploy/rust-api
+      #   run: kubectl -n cloud-native-gauntlet rollout restart deploy/rust-api
 
 
 
