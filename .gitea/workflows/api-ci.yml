@@ -2,7 +2,7 @@ name: API CI - Build and Push Image
 
 on:
   push:
-    branches: [ main, readme-start-script ]
+    branches: [ main ]
     paths:
       - 'app/rust-api/**'
       - '.gitea/workflows/**'
