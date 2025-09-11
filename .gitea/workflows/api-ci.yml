@@ -2,7 +2,7 @@ name: API CI - Build and Push Image
 
 on:
   push:
-    branches: [ main, ci-workflow ]
+    branches: [ main ]
 
 jobs:
   build-and-push:
