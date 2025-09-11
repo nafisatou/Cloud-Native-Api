@@ -37,3 +37,4 @@ jobs:
       #   run: |
       #     kubectl -n cloud-native-gauntlet rollout restart deploy/rust-api
 
+
