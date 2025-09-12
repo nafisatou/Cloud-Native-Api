@@ -2,7 +2,7 @@
 
 echo "🏃 Setting up Gitea runner with token..."
 
-RUNNER_TOKEN="A3WkeQbiRj0Lkwh5LvGXB27ks8bdex4zmUiP3o7y"
+RUNNER_TOKEN="7A180TvcdasqJoB8coHpdA2d7a4aufmOk2LLA4EM"
 
 # Create runner directory
 mkdir -p /tmp/gitea-runner
@@ -15,11 +15,7 @@ chmod +x act_runner
 
 # Register runner
 echo "🔧 Registering runner with Gitea..."
-./act_runner register \
-  --instance http://gitea.local:8888 \
-  --token "$RUNNER_TOKEN" \
-  --name "cloud-native-runner" \
-  --labels "linux-amd64:host"
+echo -e "http://gitea.local:8888\n$RUNNER_TOKEN\ncloud-native-runner\nlinux-amd64:host" | ./act_runner register --no-interactive
 
 # Create runner config
 cat > config.yaml << 'EOF'
@@ -53,29 +49,10 @@ host:
   workdir_parent: /tmp/gitea-runner-work
 EOF
 
-# Create systemd service
-sudo tee /etc/systemd/system/gitea-runner.service > /dev/null << EOF
-[Unit]
-Description=Gitea Actions Runner
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=/tmp/gitea-runner
-ExecStart=/tmp/gitea-runner/act_runner daemon --config config.yaml
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Start runner service
-echo "🚀 Starting Gitea runner service..."
-sudo systemctl daemon-reload
-sudo systemctl enable gitea-runner
-sudo systemctl start gitea-runner
+# Start runner in background
+echo "🚀 Starting Gitea runner daemon..."
+nohup ./act_runner daemon --config config.yaml > runner.log 2>&1 &
+RUNNER_PID=$!
 
 echo "✅ Gitea runner setup complete!"
 echo ""
@@ -83,7 +60,9 @@ echo "📋 Runner details:"
 echo "- Name: cloud-native-runner"
 echo "- Labels: linux-amd64:host"
 echo "- Token: $RUNNER_TOKEN"
-echo "- Status: $(sudo systemctl is-active gitea-runner)"
+echo "- PID: $RUNNER_PID"
+echo "- Log: /tmp/gitea-runner/runner.log"
 echo ""
 echo "🔍 Check runner status:"
-echo "sudo systemctl status gitea-runner"
+echo "ps aux | grep act_runner"
+echo "tail -f /tmp/gitea-runner/runner.log"
