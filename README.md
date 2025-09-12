@@ -253,3 +253,16 @@ pkill -f 'port-forward.*linkerd-viz' || true
 **Ready to begin your Cloud-Native Gauntlet journey?** 🚀
 
 Run `./setup-infrastructure.sh` to start!
+
+# to start back your servers 
+
+rusch If your Gitea instance has extra repositories, you can prune everything except the infrastructure and Rust API repos using the helper script:
+
+```bash
+export GITEA_BASE_URL=http://localhost:3000
+export GITEA_TOKEN=<your_personal_access_token>
+export GITEA_OWNER=<your_org_or_username>
+./scripts/gitea-prune.sh
+```
+
+By default, it keeps only `infra` and `rust-api` repositories.
