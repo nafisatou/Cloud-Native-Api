@@ -35,23 +35,51 @@ Build a full-stack cloud-native application with:
 
 ```mermaid
 flowchart TB
-  subgraph Docker_Host
-    subgraph kind_cluster
-      API[(Rust API Pods)] -->|TCP 5432| PG[(Postgres Pod)]
-      API -->|mTLS| Linkerd[Linkerd Control Plane]
-      Linkerd --> Viz[Linkerd Viz]
-      Argo[Argo CD]
+    subgraph DH ["Docker Host"]
+        subgraph KC_CLUSTER ["Kind Cluster (K8s)"]
+            subgraph CNG ["cloud-native-gauntlet namespace"]
+                API["Rust API Pods<br/>:8081"]
+                PG["PostgreSQL Pod<br/>CNPG"]
+                API -->|TCP 5432| PG
+            end
+            
+            subgraph LN ["linkerd namespace"]
+                LC["Linkerd Control Plane"]
+                API -.->|mTLS| LC
+            end
+            
+            subgraph LVN ["linkerd-viz namespace"]
+                LV["Linkerd Viz Dashboard<br/>:30002"]
+                LC --> LV
+            end
+            
+            subgraph ACN ["argocd namespace"]
+                AC["ArgoCD Server<br/>:30080"]
+            end
+            
+            subgraph RN ["registry namespace"]
+                REG["Local Registry<br/>:5000"]
+            end
+        end
+        
+        subgraph DC ["Docker Containers"]
+            KC["Keycloak<br/>:8080"]
+            GIT["Gitea<br/>:3000"]
+            PGDEV["Postgres Dev<br/>:5432"]
+        end
+    end
     
-    Keycloak[(Keycloak Container)]
-    Gitea[(Gitea Container)]
-    Registry[(Local Registry :5000)]
-  end
-
-  Gitea <-. GitOps .-> Argo
-  Registry -->|pull/push| API
-  Registry --> Keycloak
-  Registry --> Gitea
-  Registry --> PG
+    subgraph ER ["External Repos"]
+        RUST_REPO["rust-api repo"]
+        INFRA_REPO["infra repo"]
+    end
+    
+    GIT <-->|GitOps| AC
+    GIT <--> RUST_REPO
+    GIT <--> INFRA_REPO
+    RUST_REPO -.->|Workflow Trigger| INFRA_REPO
+    REG -->|Image Pull| API
+    KC -->|Auth| API
 ```
 
 ## 🚀 Quick Start
@@ -148,12 +176,29 @@ cloud-native-gauntlet/
 
 ## 🌐 Local Access Points
 
-- **Keycloak**: http://localhost:8082
+- **Keycloak**: http://localhost:8080
 - **Gitea**: http://localhost:3000
 - **Registry API**: http://localhost:5000/v2/_catalog
 - **Rust API (health)**: http://localhost:8081/health
 - **Argo CD UI**: http://localhost:30080
-- **Linkerd Viz UI**: http://localhost:30001
+- **Linkerd Viz UI**: http://localhost:30002
+
+## 🔧 Port Forwarding Scripts
+
+Use these scripts to manage persistent port forwarding:
+
+```bash
+# Start all port forwarding (runs in background)
+./scripts/start-port-forwarding.sh
+
+# Check status of port forwarding
+./scripts/check-port-forwarding.sh
+
+# Stop all port forwarding
+./scripts/stop-port-forwarding.sh
+```
+
+The port forwarding runs with `nohup` so it continues even if you close your terminal.
 
 
 ## ✅ Offline Validation
