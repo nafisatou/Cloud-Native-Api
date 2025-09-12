@@ -98,6 +98,7 @@ flowchart TB
 ./setup-production.sh
 ```
 
+
 This script will:
 - Start all infrastructure containers
 - Configure domain-based routing with ingress
