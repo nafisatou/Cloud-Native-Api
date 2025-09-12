@@ -82,47 +82,59 @@ flowchart TB
     KC -->|Auth| API
 ```
 
-## 🚀 Quick Start
+## 🚀 Production Setup
 
 ### Prerequisites
 
 - **Docker**
 - **kubectl**
 - **kind** (Kubernetes in Docker)
+- **Terraform** (for infrastructure provisioning)
 - 4GB+ RAM available
 
-### Bring up local services
+### One-Command Production Setup
 
-1. **Start infrastructure containers:**
+```bash
+./setup-production.sh
+```
+
+This script will:
+- Start all infrastructure containers
+- Configure domain-based routing with ingress
+- Apply Terraform infrastructure
+- Deploy ArgoCD applications
+- Set up GitOps pipeline
+
+### Manual Setup (Alternative)
+
+1. **Start infrastructure:**
    ```bash
    docker compose -f docker-compose-infra.yaml up -d
-   ```
-
-2. **Start app stack (DB + API):**
-   ```bash
    docker compose up -d
    ```
 
-3. **Verify containers:**
+2. **Apply Terraform infrastructure:**
    ```bash
-   docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'
+   cd terraform
+   terraform init
+   terraform apply
+   cd ..
    ```
 
-4. **Connect kubectl to kind cluster:**
+3. **Deploy ArgoCD applications:**
    ```bash
-   # one-time: extract and rewrite kubeconfig to host port
-   docker inspect cloud-native-gauntlet-control-plane --format '{{json .NetworkSettings.Ports}}' | jq -r '.["6443/tcp"][0].HostPort'
-   # assume it prints e.g. 37167; then set KUBECONFIG to kind-kubeconfig-local.yaml if present
-   export KUBECONFIG=$(pwd)/kind-kubeconfig-local.yaml
-   kubectl get ns
+   kubectl apply -f argocd/applications/
    ```
 
-5. **(Optional) Keep UIs reachable:**
+4. **Add local DNS entries:**
    ```bash
-   # Argo CD UI → http://localhost:30080
-   kubectl -n argocd port-forward svc/argocd-server 30080:80 &
-   # Linkerd Viz UI → http://localhost:30001
-   kubectl -n linkerd-viz port-forward svc/web 30001:8084 &
+   sudo tee -a /etc/hosts << EOF
+   127.0.0.1 argocd.local
+   127.0.0.1 gitea.local
+   127.0.0.1 keycloak.local
+   127.0.0.1 linkerd.local
+   127.0.0.1 api.local
+   EOF
    ```
 
 ### Day 3-4: Application Development
@@ -174,31 +186,32 @@ cloud-native-gauntlet/
 - **`./setup-local-dns.sh`** - Configure local DNS
 - **`./cleanup.sh`** - Clean up everything for fresh start
 
-## 🌐 Local Access Points
+## 🌐 Production Access Points
 
-- **Keycloak**: http://localhost:8080
-- **Gitea**: http://localhost:3000
+**Domain-based routing (no port forwarding needed):**
+- **ArgoCD Dashboard**: http://argocd.local
+- **Gitea Repository**: http://gitea.local  
+- **Keycloak Auth**: http://keycloak.local
+- **Linkerd Viz**: http://linkerd.local
+- **Rust API**: http://api.local
 - **Registry API**: http://localhost:5000/v2/_catalog
-- **Rust API (health)**: http://localhost:8081/health
-- **Argo CD UI**: http://localhost:30080
-- **Linkerd Viz UI**: http://localhost:30002
 
-## 🔧 Port Forwarding Scripts
+## 🔄 CI/CD Pipeline
 
-Use these scripts to manage persistent port forwarding:
+### GitHub Actions Workflow
+Push to GitHub automatically triggers:
+1. **Build & Test** - Rust application compilation and testing
+2. **Container Build** - Docker image creation and push to ghcr.io
+3. **GitOps Update** - ArgoCD application manifest update
+4. **Auto Deploy** - ArgoCD syncs changes to cluster
 
+### Local Development Scripts
 ```bash
-# Start all port forwarding (runs in background)
+# Legacy port forwarding (if needed for debugging)
 ./scripts/start-port-forwarding.sh
-
-# Check status of port forwarding
-./scripts/check-port-forwarding.sh
-
-# Stop all port forwarding
+./scripts/check-port-forwarding.sh  
 ./scripts/stop-port-forwarding.sh
 ```
-
-The port forwarding runs with `nohup` so it continues even if you close your terminal.
 
 
 ## ✅ Offline Validation
