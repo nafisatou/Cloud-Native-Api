@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linkerd-viz-config
+  namespace: linkerd-viz
+data:
+  config.yaml: |
+    enforcedHostRegexp: ""
+# Linkerd Viz ConfigMap to disable enforced host regex
+# Apply this patch to fix DNS rebinding security issue

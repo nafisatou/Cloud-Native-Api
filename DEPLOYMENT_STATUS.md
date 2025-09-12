@@ -1,7 +1,7 @@
 # Cloud-Native Gauntlet - Deployment Status Report 🚀
 
-**Generated:** 2025-09-12T11:14:00+01:00  
-**Status:** ✅ FULLY OPERATIONAL
+**Generated:** 2025-09-12T15:26:00+01:00  
+**Status:** ✅ PRODUCTION READY
 
 ## 🎯 Victory Conditions Status
 
@@ -72,16 +72,16 @@ graph TB
     style GT_K8S fill:#fce4ec
 ```
 
-## 🌐 Service Access Points
+## 🌐 Service Access Points (Production Domain-Based)
 
-| Service | URL | Status | Purpose |
-|---------|-----|--------|---------|
-| **Keycloak** | http://localhost:8080 | ✅ 200 | Authentication & Authorization |
-| **Gitea** | http://localhost:3000 | ✅ 200 | Git Repository & CI/CD |
-| **Registry** | http://localhost:5000 | ✅ Running | Container Image Registry |
-| **Rust API** | http://localhost:8081/health | ✅ 200 | Main Application API |
-| **ArgoCD UI** | http://localhost:30080 | ✅ 200 | GitOps Dashboard |
-| **Linkerd Viz** | http://localhost:30001 | ✅ 200 | Service Mesh Observability |
+| Service | Production URL | Legacy Port | Status | Purpose |
+|---------|---------------|-------------|--------|---------|
+| **Keycloak** | http://keycloak.local:8888 | http://localhost:8080 | ✅ 200 | Authentication & Authorization |
+| **Gitea** | http://gitea.local:8888 | http://localhost:3000 | ✅ 200 | Git Repository & CI/CD |
+| **Registry** | http://localhost:5000 | - | ✅ Running | Container Image Registry |
+| **Rust API** | http://api.local:8888 | http://localhost:8081 | ✅ 200 | Main Application API |
+| **ArgoCD UI** | http://argocd.local:8888 | http://localhost:30080 | ✅ 200 | GitOps Dashboard |
+| **Linkerd Viz** | http://linkerd.local:8888 | http://localhost:30001 | ✅ 200 | Service Mesh Observability |
 
 ## 📊 Pod Health Summary
 
