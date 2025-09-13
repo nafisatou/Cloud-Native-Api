@@ -87,3 +87,19 @@ spec:
     targetPort: 8080
     name: http
   type: ClusterIP
+---
+# Keycloak NodePort Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-nodeport
+  namespace: cloud-native-gauntlet
+spec:
+  selector:
+    app: keycloak
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30082
+    name: http
+  type: NodePort

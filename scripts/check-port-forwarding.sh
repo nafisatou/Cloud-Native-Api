@@ -15,15 +15,16 @@ if pgrep -f "kubectl port-forward" > /dev/null; then
     
     # Check which ports are listening
     echo "📡 Active ports:"
-    netstat -tlnp 2>/dev/null | grep -E ":(30080|30002|8081|8080|3000)" || echo "  No ports found"
+    netstat -tlnp 2>/dev/null | grep -E ":30447" || echo "  No ports found"
     
     echo ""
     echo "🌐 Service URLs:"
-    echo "  • ArgoCD Dashboard: http://localhost:30080"
-    echo "  • Linkerd Viz: http://localhost:30002"
-    echo "  • Keycloak: http://localhost:8080"
-    echo "  • Gitea: http://localhost:3000"
-    echo "  • Rust API: http://localhost:8081"
+    echo "  • ArgoCD Dashboard: http://argocd.local:30447"
+    echo "  • Linkerd Viz: http://linkerd.local:30447"
+    echo "  • Keycloak: http://keycloak.local:30447"
+    echo "  • Gitea: http://gitea.local:30447"
+    echo "  • Rust API: http://rust-api.local:30447"
+    echo "  • Registry: http://registry.local:30447"
 else
     echo "❌ No port forwarding processes found."
     echo "Run ./scripts/start-port-forwarding.sh to start services."

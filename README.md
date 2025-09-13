@@ -35,51 +35,67 @@ Build a full-stack cloud-native application with:
 
 ```mermaid
 flowchart TB
-    subgraph DH ["Docker Host"]
+    subgraph DH ["Docker Host - Final Production Setup"]
         subgraph KC_CLUSTER ["Kind Cluster (K8s)"]
             subgraph CNG ["cloud-native-gauntlet namespace"]
-                API["Rust API Pods<br/>:8081"]
-                PG["PostgreSQL Pod<br/>CNPG"]
+                API["Rust API Service<br/>Port: 8081<br/>JWT Auth + PostgreSQL"]
+                PG["PostgreSQL Cluster<br/>CNPG Operator<br/>Port: 5432"]
                 API -->|TCP 5432| PG
             end
             
             subgraph LN ["linkerd namespace"]
-                LC["Linkerd Control Plane"]
-                API -.->|mTLS| LC
+                LC["Linkerd Control Plane<br/>Service Mesh + mTLS"]
+                API -.->|mTLS Encryption| LC
             end
             
             subgraph LVN ["linkerd-viz namespace"]
-                LV["Linkerd Viz Dashboard<br/>:30002"]
+                LV["Linkerd Viz Dashboard<br/>NodePort: 30002<br/>Observability UI"]
                 LC --> LV
             end
             
             subgraph ACN ["argocd namespace"]
-                AC["ArgoCD Server<br/>:30080"]
+                AC["ArgoCD Server<br/>NodePort: 30080<br/>GitOps Dashboard"]
             end
             
             subgraph RN ["registry namespace"]
-                REG["Local Registry<br/>:5000"]
+                REG["Local Registry<br/>Port: 5000<br/>Offline Images"]
             end
         end
         
         subgraph DC ["Docker Containers"]
-            KC["Keycloak<br/>:8080"]
-            GIT["Gitea<br/>:3000"]
-            PGDEV["Postgres Dev<br/>:5432"]
+            KC["Keycloak Auth<br/>Port: 8080<br/>Identity Provider"]
+            GIT["Gitea SCM<br/>Port: 3000<br/>Git Repository"]
+            PGDEV["Postgres Dev<br/>Port: 5432<br/>Development DB"]
+            RUNNER["Gitea Runner<br/>CI/CD Executor"]
         end
     end
     
-    subgraph ER ["External Repos"]
-        RUST_REPO["rust-api repo"]
-        INFRA_REPO["infra repo"]
+    subgraph ER ["GitOps Repositories"]
+        RUST_REPO["cloud-native-api<br/>Main Application"]
+        INFRA_REPO["cloud-native-infra<br/>Infrastructure Code"]
     end
     
-    GIT <-->|GitOps| AC
-    GIT <--> RUST_REPO
-    GIT <--> INFRA_REPO
+    subgraph ACCESS ["Production Access Points"]
+        BROWSER1["ArgoCD: localhost:30080"]
+        BROWSER2["Linkerd: localhost:30002"]
+        BROWSER3["Keycloak: localhost:8080"]
+        BROWSER4["Gitea: localhost:3000"]
+        BROWSER5["API: localhost:8081"]
+    end
+    
+    GIT <-->|GitOps Sync| AC
+    GIT <-->|Source Control| RUST_REPO
+    GIT <-->|Infrastructure| INFRA_REPO
     RUST_REPO -.->|Workflow Trigger| INFRA_REPO
     REG -->|Image Pull| API
-    KC -->|Auth| API
+    KC -->|JWT Authentication| API
+    RUNNER -->|CI/CD Pipeline| GIT
+    
+    KC --> BROWSER3
+    GIT --> BROWSER4
+    API --> BROWSER5
+    AC --> BROWSER1
+    LV --> BROWSER2
 ```
 
 ## 🚀 Production Setup
@@ -187,15 +203,23 @@ cloud-native-gauntlet/
 - **`./setup-local-dns.sh`** - Configure local DNS
 - **`./cleanup.sh`** - Clean up everything for fresh start
 
-## 🌐 Production Access Points
+## 🌐 Service Access Points
 
-**Domain-based routing (no port forwarding needed):**
-- **ArgoCD Dashboard**: http://argocd.local
-- **Gitea Repository**: http://gitea.local  
-- **Keycloak Auth**: http://keycloak.local
-- **Linkerd Viz**: http://linkerd.local
-- **Rust API**: http://api.local
+**Current Working URLs (via nginx proxy on port 9080 - bypasses Apache):**
+- **Gitea Repository**: http://gitea.local:9080
+- **Keycloak Authentication**: http://keycloak.local:9080
+- **ArgoCD Dashboard**: http://argocd.local:9080
+- **Linkerd Service Mesh**: http://linkerd.local:9080
+- **Rust API**: http://rust-api.local:9080
+- **Container Registry**: http://registry.local:9080
+
+**Browser Previews (Direct Access):**
+- **Keycloak**: http://127.0.0.1:42065
+- **Linkerd**: http://127.0.0.1:38321
+
+**Legacy Direct Access (if needed):**
 - **Registry API**: http://localhost:5000/v2/_catalog
+- **Ingress Controller**: http://localhost:30447 (with Host headers)
 
 ## 🔄 CI/CD Pipeline
 
@@ -206,8 +230,11 @@ Push to GitHub automatically triggers:
 3. **GitOps Update** - ArgoCD application manifest update
 4. **Auto Deploy** - ArgoCD syncs changes to cluster
 
-### Local Development Scripts
+### Service Management Scripts
 ```bash
+# Start nginx proxy for .local domain access
+./scripts/setup-port80-proxy.sh
+
 # Legacy port forwarding (if needed for debugging)
 ./scripts/start-port-forwarding.sh
 ./scripts/check-port-forwarding.sh  
